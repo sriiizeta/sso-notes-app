@@ -1,1 +1,15 @@
-{"name":"sso-notes-frontend","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"next":"^15.5.4","react":"18.2.0","react-dom":"18.2.0","swr":"^2.1.0"}}
+{
+  "name": "sso-notes-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^15.5.4",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "swr": "^2.1.0"
+  }
+}

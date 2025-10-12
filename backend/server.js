@@ -16,7 +16,8 @@ const app = express()
 app.use(express.json())
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000'
-
+const MONGO_URI = process.env.MONGO_URI || ''
+const isProd = process.env.NODE_ENV === 'production'
 
 // CORS: allow frontend to send cookies
 app.use(
@@ -27,8 +28,7 @@ app.use(
 )
 
 // ---------- serverless-friendly mongoose connection caching ----------
-const MONGO_URI = process.env.MONGO_URI
-if (!MONGO_URI) console.warn('MONGO_URI is not set in env')
+if (!MONGO_URI) console.warn('Warning: MONGO_URI is not set in env')
 
 let cachedPromise = global.__mongoClientPromise
 async function connectToDatabase() {
@@ -47,6 +47,7 @@ async function connectToDatabase() {
 // Trust proxy if behind Vercel / proxies
 if (isProd) {
   app.set('trust proxy', 1)
+  console.log('Running in production mode; trust proxy enabled')
 }
 
 // Session middleware
@@ -106,6 +107,23 @@ passport.use(
 )
 
 // -- Routes --
+// Root (useful debug)
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    env: isProd ? 'production' : 'development',
+    message: 'Backend service running'
+  })
+})
+
+// Health check (useful)
+app.get('/_health', (req, res) =>
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString()
+  })
+)
+
 // Start Google OAuth
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }))
 
@@ -169,14 +187,17 @@ app.delete('/api/notes/:id', ensureAuth, async (req, res) => {
   }
 })
 
-// Health check (useful)
-app.get('/_health', (req, res) => res.send('ok'))
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ error: 'Internal server error' })
+})
 
 // Local dev: listen (kept for running locally)
-if (process.env.NODE_ENV!="production") {
+if (!isProd) {
   const PORT = process.env.PORT || 3050
   app.listen(PORT, () => console.log('Backend listening on port', PORT))
 }
 
 // Export serverless handler for Vercel
-export default server;
+module.exports = serverless(app)

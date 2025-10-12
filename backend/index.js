@@ -100,5 +100,8 @@ app.delete('/api/notes/:id', ensureAuth, async (req, res) => {
   res.json({ success: true })
 })
 
-const PORT = process.env.PORT || 3050
-app.listen(PORT, () => console.log('Backend listening on port', PORT))
+if(process.env.NODE_ENV!=="production"){
+  const PORT = process.env.PORT || 3050;
+  app.listen(PORT, () => console.log('Backend listening on port', PORT));
+}
+export default server;

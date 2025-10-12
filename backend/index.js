@@ -16,7 +16,7 @@ const app = express()
 app.use(express.json())
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000'
-const isProd = process.env.NODE_ENV === 'production'
+
 
 // CORS: allow frontend to send cookies
 app.use(
@@ -173,10 +173,10 @@ app.delete('/api/notes/:id', ensureAuth, async (req, res) => {
 app.get('/_health', (req, res) => res.send('ok'))
 
 // Local dev: listen (kept for running locally)
-if (!isProd) {
+if (process.env.NODE_ENV!="production") {
   const PORT = process.env.PORT || 3050
   app.listen(PORT, () => console.log('Backend listening on port', PORT))
 }
 
 // Export serverless handler for Vercel
-module.exports = serverless(app)
+export default server;

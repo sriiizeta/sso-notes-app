@@ -7,7 +7,7 @@ const MongoStore = require('connect-mongo')
 const passport = require('passport')
 const GoogleStrategy = require('passport-google-oauth20').Strategy
 const cors = require('cors')
-const serverless = require('serverless-http') // wrap app for serverless (Vercel)
+const serverless = require('serverless-http') // for Vercel serverless
 
 const User = require('./models/User')
 const Note = require('./models/Note')
@@ -26,13 +26,25 @@ app.use(
   })
 )
 
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB connected'))
-  .catch((err) => console.error('MongoDB connection error', err))
+// ---------- serverless-friendly mongoose connection caching ----------
+const MONGO_URI = process.env.MONGO_URI
+if (!MONGO_URI) console.warn('MONGO_URI is not set in env')
 
-// Trust proxy in production (required for secure cookies behind Vercel)
+let cachedPromise = global.__mongoClientPromise
+async function connectToDatabase() {
+  if (mongoose.connection.readyState === 1) {
+    // already connected
+    return
+  }
+  if (!cachedPromise) {
+    cachedPromise = mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    global.__mongoClientPromise = cachedPromise
+  }
+  await cachedPromise
+}
+// ------------------------------------------------------------------
+
+// Trust proxy if behind Vercel / proxies
 if (isProd) {
   app.set('trust proxy', 1)
 }
@@ -43,10 +55,10 @@ app.use(
     secret: process.env.SESSION_SECRET || 'keyboard cat',
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+    store: MongoStore.create({ mongoUrl: MONGO_URI }),
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      secure: isProd, // set true in prod (requires HTTPS)
+      secure: isProd, // true in production (HTTPS)
       sameSite: isProd ? 'none' : 'lax',
       httpOnly: true
     }
@@ -59,6 +71,7 @@ app.use(passport.session())
 passport.serializeUser((user, done) => done(null, user._id))
 passport.deserializeUser(async (id, done) => {
   try {
+    await connectToDatabase()
     const user = await User.findById(id)
     done(null, user)
   } catch (err) {
@@ -75,6 +88,7 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        await connectToDatabase()
         let user = await User.findOne({ googleId: profile.id })
         if (!user) {
           user = await User.create({
@@ -91,9 +105,11 @@ passport.use(
   )
 )
 
-// Routes
+// -- Routes --
+// Start Google OAuth
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }))
 
+// Google callback
 app.get(
   '/auth/google/callback',
   passport.authenticate('google', { failureRedirect: FRONTEND_ORIGIN + '/?error=auth', session: true }),
@@ -103,6 +119,7 @@ app.get(
   }
 )
 
+// Logout
 app.get('/auth/logout', (req, res, next) => {
   req.logout(function (err) {
     if (err) return next(err)
@@ -115,30 +132,51 @@ function ensureAuth(req, res, next) {
   res.status(401).json({ error: 'Not authenticated' })
 }
 
-// Notes API
+// Notes endpoints (call connectToDatabase before DB ops)
 app.get('/api/notes', ensureAuth, async (req, res) => {
-  const notes = await Note.find({ user: req.user._id }).sort({ createdAt: -1 })
-  res.json(notes)
+  try {
+    await connectToDatabase()
+    const notes = await Note.find({ user: req.user._id }).sort({ createdAt: -1 })
+    res.json(notes)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 app.post('/api/notes', ensureAuth, async (req, res) => {
-  const { text } = req.body
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Empty note' })
-  const n = await Note.create({ user: req.user._id, text: text.trim() })
-  res.json(n)
+  try {
+    await connectToDatabase()
+    const { text } = req.body
+    if (!text || !text.trim()) return res.status(400).json({ error: 'Empty note' })
+    const n = await Note.create({ user: req.user._id, text: text.trim() })
+    res.json(n)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 app.delete('/api/notes/:id', ensureAuth, async (req, res) => {
-  const note = await Note.findOneAndDelete({ _id: req.params.id, user: req.user._id })
-  if (!note) return res.status(404).json({ error: 'Not found' })
-  res.json({ success: true })
+  try {
+    await connectToDatabase()
+    const note = await Note.findOneAndDelete({ _id: req.params.id, user: req.user._id })
+    if (!note) return res.status(404).json({ error: 'Not found' })
+    res.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
-// In local dev we still want to listen (optional)
+// Health check (useful)
+app.get('/_health', (req, res) => res.send('ok'))
+
+// Local dev: listen (kept for running locally)
 if (!isProd) {
   const PORT = process.env.PORT || 3050
   app.listen(PORT, () => console.log('Backend listening on port', PORT))
 }
 
-// Export the serverless handler for Vercel
+// Export serverless handler for Vercel
 module.exports = serverless(app)

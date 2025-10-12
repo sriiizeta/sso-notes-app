@@ -47,44 +47,30 @@ export default function Home() {
             <li style={{ marginBottom: 6 }}>Save and delete notes tied to your account</li>
             <li>Secure login with Google SSO</li>
           </ul>
-
-          <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
-            <a
-              href={`${backend}/auth/google`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 16px',
-                borderRadius: 14,
-                background: 'linear-gradient(90deg,#8ecae6,#a3d8f4)',
-                color: '#083344',
-                fontWeight: 700,
-                textDecoration: 'none',
-                boxShadow: '0 6px 18px rgba(131,197,224,0.22)'
-              }}
-            >
-              Sign in with Google
-            </a>
-          </div>
         </div>
 
-        {/* Right - Decorative / preview area */}
+        {/* Right - Google sign-in */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ padding: 18, borderRadius: 14, background: '#f0f7f4', boxShadow: '0 6px 18px rgba(15,46,32,0.04)' }}>
-            <div style={{ fontSize: 14, color: '#334155', fontWeight: 700, marginBottom: 8 }}>Quick note</div>
-            <div style={{ fontSize: 15, color: '#264653' }}>Buy milk and almonds 🥛</div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>Yesterday • 10:24 AM</div>
-          </div>
-
-          <div style={{ padding: 18, borderRadius: 14, background: '#fffafc', boxShadow: '0 6px 18px rgba(40,20,50,0.03)' }}>
-            <div style={{ fontSize: 14, color: '#4b5563', fontWeight: 700, marginBottom: 8 }}>Ideas</div>
-            <ul style={{ margin: 0, paddingLeft: 18, color: '#6b7280' }}>
-              <li>Pastel theme variations</li>
-              <li>Dark mode preview</li>
-              <li>Export notes feature</li>
-            </ul>
-          </div>
+          <a
+            href={`${backend}/auth/google`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '20px 16px',
+              borderRadius: 18,
+              background: 'linear-gradient(90deg,#8ecae6,#a3d8f4)',
+              color: '#083344',
+              fontWeight: 700,
+              textDecoration: 'none',
+              fontSize: 16,
+              boxShadow: '0 6px 18px rgba(131,197,224,0.22)',
+              textAlign: 'center'
+            }}
+          >
+            Sign in with Google
+          </a>
         </div>
       </div>
     </div>

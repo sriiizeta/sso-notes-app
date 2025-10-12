@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "projects": [
+    {
+      "name": "sso-notes-backend",
+      "rootDirectory": "backend"
+    },
+    {
+      "name": "sso-notes-frontend",
+      "rootDirectory": "frontend"
+    }
+  ]
+}

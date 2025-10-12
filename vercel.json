@@ -1,13 +1,23 @@
 {
   "version": 3,
-  "projects": [
+  "builds": [
     {
-      "name": "sso-notes-backend",
-      "rootDirectory": "backend"
+      "src": "frontend/package.json",
+      "use": "@vercel/next"
     },
     {
-      "name": "sso-notes-frontend",
-      "rootDirectory": "frontend"
+      "src": "backend/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/$1"
     }
   ]
 }

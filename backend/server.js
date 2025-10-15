@@ -89,4 +89,4 @@ app.get('/', (req, res) => res.json({ status: 'ok', message: 'Backend running' }
 // your other routes unchanged...
 
 const PORT = process.env.PORT || 3050
-app.listen(PORT, () => console.log(Server listening on ${PORT}))
+app.listen(PORT, () => console.log(`Server listening on ${PORT}`))

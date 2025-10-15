@@ -13,20 +13,30 @@ const fetcher = async (url) => {
 
 export default function Notes() {
   const router = useRouter()
-  const backend = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3050'
+  const backend = process.env.NEXT_PUBLIC_BACKEND_ORIGIN
+  const [shouldFetch, setShouldFetch] = useState(false)
 
-  // FIXED: pass fetcher as second arg (previously it was inside the string by mistake)
-  const { data: notes, error, mutate } = useSWR(`${backend}/api/notes, fetcher`)
+  // Only fetch after checking the backend is reachable
+  const { data: notes, error, mutate } = useSWR(
+    shouldFetch ? `${backend}/api/notes` : null,
+    fetcher
+  )
+
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Redirect to backend Google auth if not authenticated
+  // On mount, check authentication
   useEffect(() => {
-    if (error && error.message && error.message.includes('Not authenticated')) {
-      // full-page redirect ensures cookie is set by backend during OAuth flow
-      window.location.href = `${backend}/auth/google`
+    const checkAuth = async () => {
+      try {
+        await fetch(`${backend}/api/notes`, { credentials: 'include' })
+        setShouldFetch(true) // authenticated → allow SWR to fetch
+      } catch {
+        window.location.href = `${backend}/auth/google` // redirect to login
+      }
     }
-  }, [error, backend])
+    checkAuth()
+  }, [backend])
 
   async function add() {
     if (!text.trim()) return
@@ -51,9 +61,9 @@ export default function Notes() {
     mutate()
   }
 
-  // CHECK error first so we don't show the generic Loading... when there's an auth error
-  if (error) return <div style={{ padding: 40 }}>Error: {error.message}</div>
-  if (!notes) return <div style={{ padding: 40 }}>Loading...</div>
+  if (!shouldFetch) return <div>Checking authentication...</div>
+  if (!notes) return <div>Loading notes...</div>
+  if (error) return <div>Error: {error.message}</div>
 
   return (
     <div style={{ maxWidth: 700, margin: '60px auto', padding: '30px 40px', borderRadius: 20, boxShadow: '0 0 10px rgba(0,0,0,0.1)', background: '#fdfdfd', fontFamily: 'Segoe UI, sans-serif' }}>

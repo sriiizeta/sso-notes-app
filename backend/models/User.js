@@ -1,13 +1,14 @@
+// backend/models/User.js
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const userSchema = new Schema(
+const UserSchema = new Schema(
   {
-    googleId: { type: String, required: true, unique: true },
+    googleId: { type: String, index: true },
     displayName: String,
     email: String
   },
   { timestamps: true }
 )
 
-module.exports = mongoose.model('User', userSchema)
+module.exports = mongoose.models?.User || mongoose.model('User', UserSchema)

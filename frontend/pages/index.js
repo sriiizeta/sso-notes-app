@@ -1,7 +1,9 @@
-import React from 'react'
+// frontend/pages/index.js
+import { useRouter } from 'next/router'
 
 export default function Home() {
   const backend = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3050'
+  const router = useRouter()
 
   return (
     <div

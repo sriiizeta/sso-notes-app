@@ -14,9 +14,9 @@ const app = express()
 app.use(express.json())
 
 // ---------------- ENV ----------------
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN // e.g., https://your-frontend.vercel.app
-const MONGO_URI = process.env.MONGO_URI
-const SESSION_SECRET = process.env.SESSION_SECRET
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000' // exact origin of your Next app
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/pastel-notes'
+const SESSION_SECRET = process.env.SESSION_SECRET || 'keyboard cat'
 const isProd = process.env.NODE_ENV === 'production'
 
 // ---------------- CORS ----------------
@@ -33,17 +33,20 @@ mongoose
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.error('MongoDB connection error:', err))
 
+// If running behind a proxy (e.g., in production) tell express about it
+if (isProd) app.set('trust proxy', 1)
+
 // ---------------- Sessions ----------------
 app.use(
   session({
-    secret: SESSION_SECRET || 'keyboard cat',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({ mongoUrl: MONGO_URI }),
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      secure: true, // MUST be true for HTTPS
-      sameSite: 'none', // allows cross-site cookies
+      secure: isProd, // true only in production (HTTPS)
+      sameSite: isProd ? 'none' : 'lax', // 'none' for cross-site in prod with HTTPS
       httpOnly: true
     }
   })
@@ -68,7 +71,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL
+      callbackURL: process.env.GOOGLE_CALLBACK_URL // e.g. http://localhost:3050/auth/google/callback
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

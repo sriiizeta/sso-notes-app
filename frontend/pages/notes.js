@@ -11,7 +11,7 @@ const fetcher = async (url) => {
 }
 
 export default function Notes() {
-  const backend = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || 'http://localhost:3050'
+  const backend = process.env.NEXT_PUBLIC_BACKEND_ORIGIN
   const { data: notes, error, mutate } = useSWR(backend + '/api/notes', fetcher)
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,12 +39,28 @@ export default function Notes() {
     mutate()
   }
 
-  if (error) {
-    if (error.message.includes('Not authenticated')) {
-      if (typeof window !== 'undefined') window.location.href = `${backend}/auth/google`
-      return <div>Redirecting to login...</div>
-    }
-    return <div>Error: {error.message}</div>
+  // If user is not authenticated, just show a login button
+  if (error && error.message.includes('Not authenticated')) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: 100 }}>
+        <h2>Please login to continue</h2>
+        <a
+          href={`${backend}/auth/google`}
+          style={{
+            display: 'inline-block',
+            padding: '12px 24px',
+            borderRadius: 10,
+            background: 'linear-gradient(90deg,#8ecae6,#a3d8f4)',
+            color: '#083344',
+            fontWeight: 700,
+            textDecoration: 'none',
+            marginTop: 20
+          }}
+        >
+          Sign in with Google
+        </a>
+      </div>
+    )
   }
 
   if (!notes) return <div>Loading...</div>

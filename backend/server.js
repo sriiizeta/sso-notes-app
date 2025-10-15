@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
@@ -15,7 +14,7 @@ const app = express()
 app.use(express.json())
 
 // ---------------- ENV ----------------
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN // e.g., https://your-frontend.vercel.app
 const MONGO_URI = process.env.MONGO_URI
 const SESSION_SECRET = process.env.SESSION_SECRET
 const isProd = process.env.NODE_ENV === 'production'
@@ -43,8 +42,8 @@ app.use(
     store: MongoStore.create({ mongoUrl: MONGO_URI }),
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
+      secure: true, // MUST be true for HTTPS
+      sameSite: 'none', // allows cross-site cookies
       httpOnly: true
     }
   })
@@ -90,8 +89,6 @@ passport.use(
 )
 
 // ---------------- ROUTES ----------------
-
-// Health check
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'Backend running' }))
 
 // Google OAuth
@@ -101,6 +98,7 @@ app.get(
   '/auth/google/callback',
   passport.authenticate('google', { failureRedirect: FRONTEND_ORIGIN + '/?error=auth', session: true }),
   (req, res) => {
+    // Successful login → redirect to frontend notes page
     res.redirect(FRONTEND_ORIGIN + '/notes')
   }
 )
@@ -151,12 +149,6 @@ app.delete('/api/notes/:id', ensureAuth, async (req, res) => {
     console.error(err)
     res.status(500).json({ error: 'Server error' })
   }
-})
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err)
-  res.status(500).json({ error: 'Internal server error' })
 })
 
 // ---------------- START SERVER ----------------

@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
@@ -13,10 +14,13 @@ const Note = require('./models/Note')
 const app = express()
 app.use(express.json())
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000'
-const MONGO_URI = process.env.MONGO_URI || ''
+// ---------------- ENV ----------------
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN
+const MONGO_URI = process.env.MONGO_URI
+const SESSION_SECRET = process.env.SESSION_SECRET
 const isProd = process.env.NODE_ENV === 'production'
 
+// ---------------- CORS ----------------
 app.use(
   cors({
     origin: FRONTEND_ORIGIN,
@@ -24,21 +28,21 @@ app.use(
   })
 )
 
-if (isProd) app.set('trust proxy', 1)
-
+// ---------------- Mongoose ----------------
 mongoose
   .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
-  .catch((err) => console.error('MongoDB error:', err))
+  .catch((err) => console.error('MongoDB connection error:', err))
 
+// ---------------- Sessions ----------------
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'keyboard cat',
+    secret: SESSION_SECRET || 'keyboard cat',
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({ mongoUrl: MONGO_URI }),
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
       httpOnly: true
@@ -46,6 +50,7 @@ app.use(
   })
 )
 
+// ---------------- Passport ----------------
 app.use(passport.initialize())
 app.use(passport.session())
 
@@ -76,17 +81,84 @@ passport.use(
             email: profile.emails?.[0]?.value
           })
         }
-        return done(null, user)
+        done(null, user)
       } catch (err) {
-        return done(err)
+        done(err)
       }
     }
   )
 )
 
+// ---------------- ROUTES ----------------
+
+// Health check
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'Backend running' }))
 
-// your other routes unchanged...
+// Google OAuth
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }))
 
+app.get(
+  '/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: FRONTEND_ORIGIN + '/?error=auth', session: true }),
+  (req, res) => {
+    res.redirect(FRONTEND_ORIGIN + '/notes')
+  }
+)
+
+// Logout
+app.get('/auth/logout', (req, res, next) => {
+  req.logout(function (err) {
+    if (err) return next(err)
+    res.redirect(FRONTEND_ORIGIN)
+  })
+})
+
+// Middleware: check authentication
+function ensureAuth(req, res, next) {
+  if (req.isAuthenticated && req.isAuthenticated()) return next()
+  res.status(401).json({ error: 'Not authenticated' })
+}
+
+// Notes API
+app.get('/api/notes', ensureAuth, async (req, res) => {
+  try {
+    const notes = await Note.find({ user: req.user._id }).sort({ createdAt: -1 })
+    res.json(notes)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/notes', ensureAuth, async (req, res) => {
+  try {
+    const { text } = req.body
+    if (!text || !text.trim()) return res.status(400).json({ error: 'Empty note' })
+    const note = await Note.create({ user: req.user._id, text: text.trim() })
+    res.json(note)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/notes/:id', ensureAuth, async (req, res) => {
+  try {
+    const note = await Note.findOneAndDelete({ _id: req.params.id, user: req.user._id })
+    if (!note) return res.status(404).json({ error: 'Not found' })
+    res.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ error: 'Internal server error' })
+})
+
+// ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 3050
-app.listen(PORT, () => console.log(`Server listening on ${PORT}`))
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`))

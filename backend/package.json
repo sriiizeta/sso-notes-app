@@ -1,10 +1,10 @@
 {
   "name": "sso-notes-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
+  "type": "commonjs",
   "scripts": {
-    "start": "node index.js",
-    "vercel-build": "echo 'Vercel build - no extra step needed for backend'" 
+    "start": "node server.js"
   },
   "dependencies": {
     "connect-mongo": "^4.6.0",
@@ -14,7 +14,6 @@
     "express-session": "^1.17.3",
     "mongoose": "^7.3.1",
     "passport": "^0.6.0",
-    "passport-google-oauth20": "^2.0.0",
-    "serverless-http": "^3.0.0"
+    "passport-google-oauth20": "^2.0.0"
   }
 }

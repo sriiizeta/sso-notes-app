@@ -1,23 +1,36 @@
 import useSWR from 'swr'
 import { useState } from 'react'
 
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then(r => r.json())
+const fetcher = async (url) => {
+  const res = await fetch(url, { credentials: 'include' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Fetch failed')
+  }
+  return res.json()
+}
 
 export default function Notes() {
   const backend = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || 'http://localhost:3050'
-  const { data: notes, mutate } = useSWR(backend + '/api/notes', fetcher)
+  const { data: notes, error, mutate } = useSWR(backend + '/api/notes', fetcher)
   const [text, setText] = useState('')
+  const [loading, setLoading] = useState(false)
 
   async function add() {
     if (!text.trim()) return
-    await fetch(backend + '/api/notes', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    })
-    setText('')
-    mutate()
+    setLoading(true)
+    try {
+      await fetch(backend + '/api/notes', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      })
+      setText('')
+      mutate()
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function remove(id) {
@@ -26,8 +39,15 @@ export default function Notes() {
     mutate()
   }
 
+  if (error) {
+    if (error.message.includes('Not authenticated')) {
+      if (typeof window !== 'undefined') window.location.href = `${backend}/auth/google`
+      return <div>Redirecting to login...</div>
+    }
+    return <div>Error: {error.message}</div>
+  }
+
   if (!notes) return <div>Loading...</div>
-  if (notes.error) return <div>{notes.error}</div>
 
   return (
     <div
@@ -41,9 +61,7 @@ export default function Notes() {
         fontFamily: 'Segoe UI, sans-serif'
       }}
     >
-      <h2 style={{ textAlign: 'center', color: '#5A5A5A', marginBottom: 20 }}>
-        📝 My Pastel Notes
-      </h2>
+      <h2 style={{ textAlign: 'center', color: '#5A5A5A', marginBottom: 20 }}>📝 My Pastel Notes</h2>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <input
@@ -62,6 +80,7 @@ export default function Notes() {
         />
         <button
           onClick={add}
+          disabled={loading}
           style={{
             backgroundColor: '#a3d8f4',
             border: 'none',
@@ -70,12 +89,13 @@ export default function Notes() {
             cursor: 'pointer',
             transition: '0.2s',
             fontWeight: '600',
-            color: '#333'
+            color: '#333',
+            opacity: loading ? 0.6 : 1
           }}
           onMouseOver={(e) => (e.target.style.backgroundColor = '#8ecae6')}
           onMouseOut={(e) => (e.target.style.backgroundColor = '#a3d8f4')}
         >
-          ➕ Add
+          ➕ {loading ? 'Adding...' : 'Add'}
         </button>
         <a
           href={backend + '/auth/logout'}
@@ -131,7 +151,7 @@ export default function Notes() {
                   onMouseOver={(e) => (e.target.style.backgroundColor = '#ff8585')}
                   onMouseOut={(e) => (e.target.style.backgroundColor = '#ffadad')}
                 >
-                  🗑️ Delete
+                  🗑 Delete
                 </button>
               </li>
             ))}

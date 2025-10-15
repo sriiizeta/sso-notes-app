@@ -72,7 +72,7 @@ export default function Home() {
         {/* Right Section - Google Sign In */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <a
-            href={${backend}/auth/google}
+            href={`${backend}/auth/google`}
             style={{
               display: 'flex',
               alignItems: 'center',
